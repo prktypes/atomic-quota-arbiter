@@ -5,18 +5,18 @@ This document takes you from fundamental concepts to advanced production impleme
 
 ---
 
-## 📖 Table of Contents
+## Table of Contents
 
-1. [Rate Limiting Fundamentals](#1-rate-limiting-fundamentals)
-2. [Token Bucket Algorithm](#2-token-bucket-algorithm)
-3. [Key Strategies & Implementation](#3-key-strategies--implementation)
-4. [Production Response Headers](#4-production-response-headers)
-5. [Distributed Rate Limiting](#5-distributed-rate-limiting)
-6. [Advanced Patterns](#6-advanced-patterns)
-7. [Testing & Validation](#7-testing--validation)
-8. [Real-World Use Cases](#8-real-world-use-cases)
-9. [Common Pitfalls & Best Practices](#9-common-pitfalls--best-practices)
-10. [Further Learning Resources](#10-further-learning-resources)
+1. Rate Limiting Fundamentals
+2. Token Bucket Algorithm
+3. Key Strategies & Implementation
+4. Production Response Headers
+5. Distributed Rate Limiting
+6. Advanced Patterns
+7. Testing & Validation
+8. Real-World Use Cases
+9. Common Pitfalls & Best Practices
+10. Further Learning Resources
 
 ---
 
@@ -25,10 +25,10 @@ This document takes you from fundamental concepts to advanced production impleme
 ### What is Rate Limiting?
 Rate limiting is a technique used to control the amount of requests a client can make to a service within a given time period. It's essential for:
 
-- **Preventing abuse** - Protecting against spam, bots, and malicious traffic
-- **Ensuring fairness** - Distributing resources evenly among all users
-- **Maintaining availability** - Preventing any single user from overwhelming the system
-- **Cost control** - Limiting resource usage in cloud environments
+- Preventing abuse - Protecting against spam, bots, and malicious traffic
+- Ensuring fairness - Distributing resources evenly among all users
+- Maintaining availability - Preventing any single user from overwhelming the system
+- Cost control - Limiting resource usage in cloud environments
 
 ### Why Do We Need It?
 Without rate limiting, a single client could:
@@ -38,8 +38,8 @@ Without rate limiting, a single client could:
 - Degrade performance for all other users
 
 ### Rate Limiting vs. Throttling
-- **Rate Limiting**: Hard boundary - once limit is reached, requests are rejected
-- **Throttling**: Graceful degradation - requests are slowed down but not necessarily rejected
+- Rate Limiting: Hard boundary - once limit is reached, requests are rejected
+- Throttling: Graceful degradation - requests are slowed down but not necessarily rejected
 
 ---
 
@@ -72,26 +72,26 @@ Refill Process (happens on every request):
 
 Visual Example (maxTokens=5, refillRate=1 token per 2s):
 
-Time: 0s   | Tokens: [5]   | Request: ✓ ALLOWED (tokens: 4)
-Time: 2s   | Tokens: [4]   | Request: ✓ ALLOWED (tokens: 3)
-Time: 4s   | Tokens: [3]   | Request: ✓ ALLOWED (tokens: 2)
-Time: 5s   | Tokens: [2]   | ⏱️ 1s elapsed, no refill yet
-Time: 6s   | Tokens: [2]   | Request: ✓ ALLOWED (tokens: 1) [refill 1 token]
-Time: 8s   | Tokens: [1]   | Request: ✓ ALLOWED (tokens: 0) [refill 1 token]
-Time: 10s  | Tokens: [0]   | ⏱️ 2s elapsed since last refill
-Time: 12s  | Tokens: [1]   | Request: ✓ ALLOWED [refill 2 tokens over 2s]
-Time: 15s  | Tokens: [0]   | Request: ✗ RATE LIMITED (0 tokens available)
-Time: 16s  | Tokens: [0]   | ⏱️ 1s elapsed
-Time: 18s  | Tokens: [1]   | Request: ✓ ALLOWED [refill 1 token]
+Time: 0s   | Tokens: [5]   | Request: Allowed (tokens: 4)
+Time: 2s   | Tokens: [4]   | Request: Allowed (tokens: 3)
+Time: 4s   | Tokens: [3]   | Request: Allowed (tokens: 2)
+Time: 5s   | Tokens: [2]   | 1s elapsed, no refill yet
+Time: 6s   | Tokens: [2]   | Request: Allowed (tokens: 1) [refill 1 token]
+Time: 8s   | Tokens: [1]   | Request: Allowed (tokens: 0) [refill 1 token]
+Time: 10s  | Tokens: [0]   | 2s elapsed since last refill
+Time: 12s  | Tokens: [1]   | Request: Allowed [refill 2 tokens over 2s]
+Time: 15s  | Tokens: [0]   | Request: Rate Limited (0 tokens available)
+Time: 16s  | Tokens: [0]   | 1s elapsed
+Time: 18s  | Tokens: [1]   | Request: Allowed [refill 1 token]
 ```
 
 ### Key Parameters
 
 | Parameter | Type | Typical Range | Description |
 |-----------|------|---------------|-------------|
-| `maxTokens` | integer | 10-10000 | Maximum requests per window |
-| `refillRate` | float | 0.001-10 | Tokens per millisecond |
-| `windowSize` | integer | 60-3600 | Time window in milliseconds |
+| maxTokens | integer | 10-10000 | Maximum requests per window |
+| refillRate | float | 0.001-10 | Tokens per millisecond |
+| windowSize | integer | 60-3600 | Time window in milliseconds |
 
 ### Mathematical Formulas
 
@@ -251,7 +251,7 @@ if (result.allowed) {
   res.setHeader('X-RateLimit-Remaining', result.remaining);
   res.setHeader('X-Reset', new Date(result.resetTime).toISOString());
   res.setHeader('Retry-After', Math.ceil(result.retryAfter) + 's');
-  
+
   return res.status(429).json({
     error: 'Too Many Requests',
     message: 'Your request was rate limited',
@@ -264,17 +264,17 @@ if (result.allowed) {
 
 | Header | Meaning | Typical Value |
 |--------|---------|---------------|
-| `X-RateLimit-Limit` | Maximum requests allowed in window | `100` |
-| `X-RateLimit-Remaining` | Requests remaining in current window | `45` |
-| `X-Reset` | Timestamp when bucket resets | `2024-01-15T14:30:00Z` |
-| `Retry-After` | Seconds to wait before retrying | `15` |
+| X-RateLimit-Limit | Maximum requests allowed in window | 100 |
+| X-RateLimit-Remaining | Requests remaining in current window | 45 |
+| X-Reset | Timestamp when bucket resets | 2024-01-15T14:30:00Z |
+| Retry-After | Seconds to wait before retrying | 15 |
 
 ### Best Practices
 
-1. **Always include headers** - Even on allowed requests, clients need visibility
-2. **Use consistent naming** - Follow RFC 6794 or similar standards
-3. **Include on 429 responses** - Helps clients understand and respect limits
-4. **Don't over-engineer** - Start simple, add complexity as needed
+1. Always include headers - Even on allowed requests, clients need visibility
+2. Use consistent naming - Follow RFC 6794 or similar standards
+3. Include on 429 responses - Helps clients understand and respect limits
+4. Don't over-engineer - Start simple, add complexity as needed
 
 ---
 
@@ -283,9 +283,9 @@ if (result.allowed) {
 ### Why In-Memory Isn't Enough
 In a single-node setup, the rate limiter works fine. But in production:
 
-- **Multiple server instances** - Each has its own memory, no shared state
-- **Load balancing** - Requests hit different nodes randomly
-- **Cache invalidation** - Remember me patterns don't work across nodes
+- Multiple server instances - Each has its own memory, no shared state
+- Load balancing - Requests hit different nodes randomly
+- Cache invalidation - Remember me patterns don't work across nodes
 
 ### Solutions
 
@@ -313,7 +313,7 @@ if tokens == 0 then
     -- Bucket empty, check if window expired
     local lastRefill = tonumber(redis.call('GET', KEYS[1]:refill, 0))
     local elapsed = currentTime - lastRefill
-    
+
     if elapsed > tonumber(ARGV[2]) then
         -- Window expired, reset
         tokens = tonumber(ARGV[1])
@@ -347,9 +347,9 @@ end
 #### 5.3 Rate Limit Middleware Libraries
 
 Popular options:
-- **express-rate-limit** - Simple Express middleware
-- **rate-limiter-flexible** - Supports Redis, memory, MongoDB
-- **kubernetes rate limiter** - Built into API servers
+- express-rate-limit - Simple Express middleware
+- rate-limiter-flexible - Supports Redis, memory, MongoDB
+- kubernetes rate limiter - Built into API servers
 
 ---
 
@@ -437,11 +437,11 @@ function tryRequest(req) {
 
 | Test Case | Description | Expected |
 |-----------|-------------|----------|
-| `testBasicAllowDeny` | 5 requests, limit=3 | 1st 3: allowed, 4th+: denied |
-| `testRefillTiming` | Wait 5s, then request | Tokens should partially refill |
-| `testKeyIsolation` | Two different IPs, limit=5 each | Each has independent 5-token bucket |
-| `testBoundaryExact` | Request #3 at exactly limit=3 | #3: allowed (consumes last token), #4: denied |
-| `testConcurrentRequests` | 10 simultaneous requests, limit=5 | Approximately 5 allowed, 5 denied |
+| testBasicAllowDeny | 5 requests, limit=3 | 1st 3: allowed, 4th+: denied |
+| testRefillTiming | Wait 5s, then request | Tokens should partially refill |
+| testKeyIsolation | Two different IPs, limit=5 each | Each has independent 5-token bucket |
+| testBoundaryExact | Request #3 at exactly limit=3 | #3: allowed (consumes last token), #4: denied |
+| testConcurrentRequests | 10 simultaneous requests, limit=5 | Approximately 5 allowed, 5 denied |
 
 ### 7.2 CLI Testing Commands
 
@@ -458,10 +458,10 @@ node cli.js --max 10 --duration 30000
 
 ### 7.3 Integration Testing
 
-- **Stress testing** - Send many requests quickly
-- **Timeout testing** - Ensure rate limits don't hang requests
-- **Edge cases** - Empty requests, malformed keys, very large limits
-- **Concurrent users** - Multiple "users" hitting the endpoint
+- Stress testing - Send many requests quickly
+- Timeout testing - Ensure rate limits don't hang requests
+- Edge cases - Empty requests, malformed keys, very large limits
+- Concurrent users - Multiple "users" hitting the endpoint
 
 ---
 
@@ -474,9 +474,9 @@ node cli.js --max 10 --duration 30000
 const rateLimit = require('express-rate-limit');
 
 const apiLimiter = rateLimit({
-  max: 100,           // 100 requests
+  max: 100, // 100 requests
   windowMs: 15 * 60 * 1000, // per 15 minutes
-  message: 'Too many requests, please try later later later',
+  message: 'Too many requests, please try later',
   standardRateLimit: true
 });
 
@@ -502,7 +502,7 @@ const scraperLimiter = rateLimit({
 ```javascript
 // Prevent password brute force
 const loginLimiter = rateLimit({
-  max: 3,              // 3 attempts
+  max: 3, // 3 attempts
   windowMs: 60 * 1000, // per minute
   handler: (req, res) => {
     // Could temporarily IP block
@@ -532,23 +532,23 @@ const wsLimiter = rateLimit({
 
 | Pitfall | Symptom | Fix |
 |---------|---------|-----|
-| **Too aggressive** | Legitimate users rate limited immediately | Increase limits, monitor analytics |
-| **Too lenient** | Abuse not prevented | Tighten limits, add stricter strategies |
-| **Static windows** | Abuse at window boundaries | Use token bucket for smooth boundaries |
-| **No headers** | Clients unaware of limits | Always include rate limit headers |
-| **Single node only** | Distributed systems don't work together | Use Redis or distributed cache |
-| **Forgot to reset** | Testing impossible | Add reset mechanism for dev environments |
+| Too aggressive | Legitimate users rate limited immediately | Increase limits, monitor analytics |
+| Too lenient | Abuse not prevented | Tighten limits, add stricter strategies |
+| Static windows | Abuse at window boundaries | Use token bucket for smooth boundaries |
+| No headers | Clients unaware of limits | Always include rate limit headers |
+| Single node only | Distributed systems don't work together | Use Redis or distributed cache |
+| Forgot to reset | Testing impossible | Add reset mechanism for dev environments |
 
 ### 9.2 Best Practices
 
-1. **Start moderate** - 100 requests per 15 min is a good starting point
-2. **Monitor and adjust** - Use analytics to tune limits over time
-3. **Graceful degradation** - Don't break functionality, just slow it
-4. **Educate clients** - Headers help clients understand and respect limits
-5. **Per-tier limits** - Different limits for different user categories
-6. **Comprehensive logging** - Log rate limit events for debugging
-7. **Respect Retry-After** - Clients should honor the suggested wait time
-8. **Test in staging** - Never assume limits work without testing
+1. Start moderate - 100 requests per 15 min is a good starting point
+2. Monitor and adjust - Use analytics to tune limits over time
+3. Graceful degradation - Don't break functionality, just slow it
+4. Educate clients - Headers help clients understand and respect limits
+5. Per-tier limits - Different limits for different user categories
+6. Comprehensive logging - Log rate limit events for debugging
+7. Respect Retry-After - Clients should honor the suggested wait time
+8. Test in staging - Never assume limits work without testing
 
 ---
 
@@ -560,53 +560,53 @@ const wsLimiter = rateLimit({
 - Redis documentation - Rate limiting patterns
 
 ### Tools & Libraries
-- **express-rate-limit** - Simple Express middleware
-- **rate-limiter-flexible** - Feature-rich, multiple backends
-- **kubernetes rate limiter** - Built into API servers
-- **Redis Lua scripts** - Custom atomic operations
+- express-rate-limit - Simple Express middleware
+- rate-limiter-flexible - Feature-rich, multiple backends
+- kubernetes rate limiter - Built into API servers
+- Redis Lua scripts - Custom atomic operations
 
 ### Practice Projects
-1. **Simple rate limiter** - Token bucket in Node.js (this project!)
-2. **Redis-integrated** - Add Redis for distributed capabilities
-3. **Express middleware** - Wrap your rate limiter as Express middleware
-4. **CLI tester** - Enhance the CLI with more features
-5. **Multi-tenant** - Support different limits per tenant/subscription
+1. Simple rate limiter - Token bucket in Node.js (this project!)
+2. Redis-integrated - Add Redis for distributed capabilities
+3. Express middleware - Wrap your rate limiter as Express middleware
+4. CLI tester - Enhance the CLI with more features
+5. Multi-tenant - Support different limits per tenant/subscription
 
 ---
 
-## 📊 Learning Checklist
+## Learning Checklist
 
 ### Beginner
-- [ ] Understand token bucket algorithm
-- [ ] Implement basic rate limiter
-- [ ] Test via CLI
-- [ ] Add response headers
-- [ ] Understand key strategies
+- Understand token bucket algorithm
+- Implement basic rate limiter
+- Test via CLI
+- Add response headers
+- Understand key strategies
 
 ### Intermediate
-- [ ] Implement user-based limiting
-- [ ] Add endpoint-based limiting
-- [ ] Configure different tiers
-- [ ] Test edge cases
-- [ ] Monitor and adjust
+- Implement user-based limiting
+- Add endpoint-based limiting
+- Configure different tiers
+- Test edge cases
+- Monitor and adjust
 
 ### Advanced
-- [ ] Distributed rate limiting with Redis
-- [ ] Adaptive rate limiting
-- [ ] Priority queuing system
-- [ ] Burst allowance configuration
-- [ ] Comprehensive test suite
+- Distributed rate limiting with Redis
+- Adaptive rate limiting
+- Priority queuing system
+- Burst allowance configuration
+- Comprehensive test suite
 
 ### Expert
-- [ ] Custom algorithms (CRR, TICTAC, etc.)
-- [ ] Machine learning-based adaptation
-- [ ] Kubernetes-native implementation
-- [ ] OpenAPI rate limit documentation
-- [ ] Contribute to open-source rate limiter libraries
+- Custom algorithms (CRR, TICTAC, etc.)
+- Machine learning-based adaptation
+- Kubernetes-native implementation
+- OpenAPI rate limit documentation
+- Contribute to open-source rate limiter libraries
 
 ---
 
-## 🎯 Quick Start Action Items
+## Quick Start Action Items
 
 **Today:**
 1. Read this roadmap thoroughly
@@ -629,7 +629,5 @@ const wsLimiter = rateLimit({
 3. Plan long-term rate limiting strategy
 
 ---
-
-**Happy rate limiting!** 🎉
 
 This roadmap takes you from fundamental concepts to production-ready implementation. Master each section before moving on, and don't hesitate to experiment and break things - that's how we truly learn.
