@@ -3,54 +3,59 @@
 A professional, educational rate limiter implementation using the Token Bucket algorithm.
 Built for understanding and demonstrating the core concepts of rate limiting in distributed systems.
 
-## 📋 Overview
+## Overview
 
-This project implements a production-ready rate limiter using the **Token Bucket** algorithm,
+This project implements a production-ready rate limiter using the Token Bucket algorithm,
 with a CLI interface for real-time demonstration and testing of rate limiting behavior.
 
-## 🏗️ Architecture & Concepts
+## Architecture & Concepts
 
-### 1. Core Algorithm: Token Bucket
+### Core Algorithm: Token Bucket
 
 The token bucket is the most widely used rate limiting algorithm. Here's how it works:
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────
-│  Token Bucket Diagram:
-│
-│  ┌─────────────────────┐   + tokens every Δt milliseconds
-│  │         [ Bucket ]│──┼──► Holds N maximum tokens (maxRequests)
-│  │  Current tokens:    ││  Last refill timestamp: lastRefill
-│  │ ─────────────────────┼──┼──────────────────────────────────────
-│  │        ╲╲╲╲╲ Request  ││  ╲╲╲╲  Consumes 1 token per request
-│  │         ╲╲╲ Request ││
-│  │  ──────►││          ││
-│  │         ││  ╲╲   ││
-│  │         ││   │╲   ││  ╰╳╳╳╳╳ If 0 tokens → 429 Rate Limited
-│  │         ││   ╲   ││
-│  │   ⌒     ││    ⌒   ││
-│  │         ││         ││
-│  │ ──────►││  +─────  ││────► Refresh tokens: Δt × rate
-│  │         ││       ││
-│  └─────────────┘     │
-└─────────────────────┘
-```
++----------------------------------------------------+
+|        Token Bucket Diagram                        |
++----------------------------------------------------+
 
-**Key Parameters:**
-- `maxRequests`: Maximum tokens the bucket can hold (requests per window)
-- `durationMs`: Time window in milliseconds (how long tokens take to replenish)
-- `refillRate`: `maxRequests / durationMs` (tokens replenished per millisecond)
+  + tokens every Δt milliseconds
+  Holds N maximum tokens (maxRequests)
+  Last refill timestamp: lastRefill
 
-### 2. Key Strategies & Use Cases
+  Consumes 1 token per request
+  If 0 tokens available → 429 Rate Limited
 
-| Strategy | When to Use | Example |
-|----------|-------------|---------|
-| **IP-based** | Public APIs, unauthenticated access | `limiter(req.ip)` |
-| **User-based** | Authenticated users, per-subscription | `limiter(user.id)` |
-| **Endpoint-based** | Different limits per API path | `limiter(`${method}:${path}`)` |
-| **Composite** | Multi-factor limits | `limiter(`${ip}:${userId}`)` |
+  +----------------------------------------------------+
+  |              Bucket                                |
+  |----------------------------------------------------|
+  | Current tokens | Last refill                                    |
+  |                |                                              |
+  |  Request  ─────┼─► Consume token                                             |
+  |                  │                                              |
+  |  Request  ─────┼─► Consume token                                             |
+  |                  │                                              |
+  |  Request  ─────┼─► If 0 tokens → Rate Limited (429)                        |
+  |                  │                                              |
+  |  Reset/Time    │─► Refresh tokens based on elapsed time                  |
+  |                                              |
+  +----------------------------------------------------+
 
-### 3. Production Response Headers
+Key Parameters:
+- maxRequests: Maximum tokens the bucket can hold (requests per window)
+- durationMs: Time window in milliseconds (how long tokens take to replenish)
+- refillRate: maxRequests / durationMs (tokens replenished per millisecond)
+
+### Key Strategies & Use Cases
+
+| Strategy          | When to Use                          | Example                     |
+|-------------------|-------------------------------------|-----------------------------|
+| IP-based          | Public APIs, unauthenticated access  | limiter(req.ip)             |
+| User-based        | Authenticated users, per-subscription| limiter(user.id)            |
+| Endpoint-based    | Different limits per API path       | limiter(method + path)    |
+| Composite         | Multi-factor limits                 | limiter(ip + userId)      |
+
+### Production Response Headers
 
 When implementing in Express/Node.js, include these headers:
 
@@ -61,15 +66,15 @@ res.setHeader('X-Reset', new Date(resetTime).toISOString());
 res.setHeader('Retry-After', Math.ceil(retryAfter) + 's');
 ```
 
-### 3. Concurrency & Thread Safety
+### Concurrency & Thread Safety
 
 - **In-memory**: Good for single-node development/demo
 - **Distributed**: Use Redis with Redlock for multi-instance deployments
 - **Window Precision**: Token bucket provides smooth burst allowance vs. fixed windows
 
-## 🛠️ Implementation
+### Implementation
 
-### RateLimiter Class (`src/rateLimiter.js`)
+**RateLimiter Class** (`src/rateLimiter.js`):
 
 ```javascript
 // Usage
@@ -90,7 +95,7 @@ if (result.allowed) {
 }
 ```
 
-### CLI Tester (`cli.js`)
+**CLI Tester** (`cli.js`):
 
 Real-time demonstration of rate limiting behavior:
 
@@ -98,14 +103,13 @@ Real-time demonstration of rate limiting behavior:
 node cli.js
 ```
 
-**Features:**
+Features:
 - Interactive request sending
 - Real-time output showing ALLOWED vs RATE LIMITED
 - Bucket reset capability
 - Shows request IDs, timestamps, and retry times
-- Visual color-coded output
 
-## 🚥 Real-Time CLI Demo
+## Real-Time CLI Demo
 
 ### Sample Output
 
@@ -114,10 +118,10 @@ node cli.js
                     RATE LIMITER REAL-TIME DEMONSTRATION
 ================================================================================
 Configuration: 5 requests per 10s
-=======================================================================
+=====================================================================
 
 --- Attempt #1 ---
-✓ ALLOWED
+ALLOWED
   Key: 192.168.1.100
   Request ID: 192.168.1.100-1730123456789
   Remaining: 4/5
@@ -125,7 +129,7 @@ Configuration: 5 requests per 10s
   Timestamp: 2023-01-15T14:30:12.000Z
 
 --- Attempt #2 ---
-✓ ALLOWED
+ALLOWED
   Key: 192.168.1.100
   Request ID: 192.168.1.100-1730123456790
   Remaining: 3/5
@@ -133,7 +137,7 @@ Configuration: 5 requests per 10s
   Timestamp: 2023-01-15T14:30:12.001Z
 
 --- Attempt #3 ---
-✓ ALLOWED
+ALLOWED
   Key: 192.168.1.100
   Request ID: 192.168.1.100-1730123456791
   Remaining: 2/5
@@ -141,7 +145,7 @@ Configuration: 5 requests per 10s
   Timestamp: 2023-01-15T14:30:12.002Z
 
 --- Attempt #4 ---
-✓ ALLOWED
+ALLOWED
   Key: 192.168.1.100
   Request ID: 192.168.1.100-1730123456792
   Remaining: 1/5
@@ -149,7 +153,7 @@ Configuration: 5 requests per 10s
   Timestamp: 2023-01-15T14:30:12.003Z
 
 --- Attempt #5 ---
-✓ ALLOWED
+ALLOWED
   Key: 192.168.1.100
   Request ID: 192.168.1.100-1730123456793
   Remaining: 0/5
@@ -157,56 +161,56 @@ Configuration: 5 requests per 10s
   Timestamp: 2023-01-15T14:30:12.004Z
 
 --- Attempt #6 ---
-✗ RATE LIMITED
+RATE LIMITED
   Key: 192.168.1.100
   Request ID: 192.168.1.100-1730123456794
   Remaining: 0/5
   Retry after: 3s
   Reset at: 02:31 PM
   Timestamp: 2023-01-15T14:30:12.004Z
-⚠ Please wait before resending your request
+Please wait before resending your request
 ```
 
 ### Controls
-- Press **Enter** to send next request
-- Type **"reset"** to reset bucket and start fresh
+- Press Enter to send next request
+- Type "reset" to reset bucket and start fresh
 - Observes real-time token depletion and refill demonstration
 
-## 📊 Rate Limiting Roadmap
+## Rate Limiting Roadmap
 
 ### Phase 1: Foundation (Completed)
-- ✅ Token bucket algorithm implementation
-- ✅ In-memory bucket management
-- ✅ Key generation strategies
-- ✅ Basic allow/deny logic
+- Token bucket algorithm implementation
+- In-memory bucket management
+- Key generation strategies
+- Basic allow/deny logic
 
 ### Phase 2: Production Features
-- ✅ Response headers implementation
-- ✅ Rate limit reset mechanisms
-- ✅ Error handling (429 Too Many Requests)
-- ✅ Request tracing/ID generation
+- Response headers implementation
+- Rate limit reset mechanisms
+- Error handling (429 Too Many Requests)
+- Request tracing/ID generation
 
 ### Phase 3: Distributed Systems
-- ✅ Redis integration for multi-node
-- ✅ Consistent hashing for key distribution
-- ✅ Cross-server rate limit coordination
-- ✅ Cache integration for performance
+- Redis integration for multi-node
+- Consistent hashing for key distribution
+- Cross-server rate limit coordination
+- Cache integration for performance
 
 ### Phase 4: Advanced Features
-- ✅ Adaptive rate limiting (based on usage patterns)
-- ✅ Priority queuing for premium users
-- ✅ Burst allowance configuration
-- ✅ Metrics & monitoring endpoints
-- ✅ A/B testing of rate limit strategies
+- Adaptive rate limiting (based on usage patterns)
+- Priority queuing for premium users
+- Burst allowance configuration
+- Metrics & monitoring endpoints
+- A/B testing of rate limit strategies
 
 ### Phase 5: Developer Experience
-- ✅ OpenAPI specification generation
-- ✅ TypeScript typings
-- ✅ Comprehensive test suite
-- ✅ Docker & Kubernetes deployment
-- ✅ GraphQL rate limit awareness
+- OpenAPI specification generation
+- TypeScript typings
+- Comprehensive test suite
+- Docker & Kubernetes deployment
+- GraphQL rate limit awareness
 
-## 🧪 Testing & Validation
+## Testing & Validation
 
 ### CLI Test Commands
 
@@ -220,19 +224,19 @@ node cli.js --max 10 --duration 30000
 
 ### Unit Test Scenarios
 
-1. **Basic allow/deny**: Verify tokens deplete then block
-2. **Refill timing**: Verify tokens replenish over time
-3. **Key isolation**: Different keys have independent buckets
-4. **Edge cases**: Empty requests, exact boundary conditions
-5. **Concurrency**: Multiple simultaneous request handling
+1. Basic allow/deny: Verify tokens deplete then block
+2. Refill timing: Verify tokens replenish over time
+3. Key isolation: Different keys have independent buckets
+4. Edge cases: Empty requests, exact boundary conditions
+5. Concurrency: Multiple simultaneous request handling
 
-## 🔧 Configuration Options
+## Configuration Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `maxRequests` | number | `100` | Maximum requests per window |
-| `durationMs` | number | `60000` | Window duration in milliseconds |
-| `keyGenerator` | Function | IP-based | Function to generate unique key |
+| Option        | Type      | Default | Description                          |
+|---------------|-----------|---------|--------------------------------------|
+| maxRequests   | number    | 100   | Maximum requests per window          |
+| durationMs    | number    | 60000 | Window duration in milliseconds      |
+| keyGenerator  | Function  | IP-based | Function to generate unique key     |
 
 ### Example Configurations
 
@@ -240,35 +244,35 @@ node cli.js --max 10 --duration 30000
 // Strict: 10 requests per minute
 const strict = new RateLimiter({ maxRequests: 10, durationMs: 60000 });
 
-// Generous: 100 requests per hour  
-const generous = new RateLimiter({ maxRequests: 100, durationMs: 3600000 });
+// Generous: 100 requests per hour
+const generous = new RateLimiter({ maxRequests: 100, duration: 3600000 });
 
 // Per-endpoint: 50 requests per minute for auth endpoints
 const auth = new RateLimiter({
   maxRequests: 50,
-  durationMs: 60000,
+  duration: 60000,
   keyGenerator: (req) => `${req.method}:${req.path}`
 });
 ```
 
-## 📦 Installation
+## Installation
 
 ```bash
 # Clone repository
 git clone https://github.com/prktypes/atomic-quota-arbiter.git
 
 # Install dependencies
-cd atomic-quota-arbiter
+cd atomic-quota-arbitrary
 npm install
 
 # Run CLI demo
 node cli.js
 ```
 
-## 🛡️ License
+## License
 
 MIT - Built for educational purposes and production use.
 
 ---
 
-**Created with ❤️ for the rate-limiter learning community**
+Created for the rate-limiter learning community
